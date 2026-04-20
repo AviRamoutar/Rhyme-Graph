@@ -1,0 +1,11 @@
+name: SWE Feature
+entry: understand
+nodes:
+  - id: understand
+    next: [implement]
+  - id: implement
+    next: [review]
+  - id: review
+    next: [ship, implement]
+  - id: ship
+    next: []
