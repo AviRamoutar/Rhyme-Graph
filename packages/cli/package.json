@@ -1,0 +1,19 @@
+{
+  "name": "@processgraph/cli",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "processgraph": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@processgraph/shared": "workspace:*",
+    "commander": "^12.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "typescript": "^5.4.0"
+  }
+}
