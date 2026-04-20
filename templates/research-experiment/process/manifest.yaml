@@ -1,0 +1,15 @@
+name: Research Experiment
+entry: literature
+nodes:
+  - id: literature
+    next: [hypothesis]
+  - id: hypothesis
+    next: [implement]
+  - id: implement
+    next: [train]
+  - id: train
+    next: [evaluate]
+  - id: evaluate
+    next: [writeup, hypothesis]
+  - id: writeup
+    next: []
