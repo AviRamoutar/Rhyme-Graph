@@ -1,0 +1,66 @@
+{
+  "name": "@processgraph/vscode-extension",
+  "displayName": "Process Graph",
+  "description": "Visualize and navigate process graphs for structured agent workflows",
+  "version": "0.1.0",
+  "publisher": "processgraph",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": ["Visualization"],
+  "activationEvents": [
+    "workspaceContains:process/manifest.yaml"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "processGraph.open",
+        "title": "Process Graph: Open Panel"
+      },
+      {
+        "command": "processGraph.init",
+        "title": "Process Graph: Initialize from Template"
+      },
+      {
+        "command": "processGraph.validate",
+        "title": "Process Graph: Validate"
+      },
+      {
+        "command": "processGraph.toggleEnforcement",
+        "title": "Process Graph: Toggle Enforcement (off/warn/block)"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "processGraph",
+          "title": "Process Graph",
+          "icon": "$(graph)"
+        }
+      ]
+    },
+    "views": {
+      "processGraph": [
+        {
+          "id": "processGraph.welcome",
+          "name": "Process Graph",
+          "type": "webview"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "build:webview": "cd webview && npx vite build"
+  },
+  "dependencies": {
+    "@processgraph/shared": "workspace:*",
+    "chokidar": "^3.6.0"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "@types/node": "^20.11.0",
+    "typescript": "^5.4.0"
+  }
+}
