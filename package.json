@@ -1,0 +1,20 @@
+{
+  "name": "processgraph",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "build": "pnpm -r build",
+    "build:shared": "pnpm --filter @processgraph/shared build",
+    "build:mcp-server": "pnpm --filter @processgraph/mcp-server build",
+    "build:mcp-proxy": "pnpm --filter @processgraph/mcp-proxy build",
+    "build:cli": "pnpm --filter @processgraph/cli build",
+    "build:extension": "pnpm --filter @processgraph/vscode-extension build",
+    "build:web-viewer": "pnpm --filter @processgraph/web-viewer build",
+    "copy-examples": "node scripts/copy-examples.mjs",
+    "postinstall": "node scripts/copy-examples.mjs"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  }
+}
