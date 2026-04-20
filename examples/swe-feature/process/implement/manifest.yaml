@@ -1,0 +1,9 @@
+name: Implementation Workflow
+entry: write-tests
+nodes:
+  - id: write-tests
+    next: [implement]
+  - id: implement
+    next: [refactor]
+  - id: refactor
+    next: []
