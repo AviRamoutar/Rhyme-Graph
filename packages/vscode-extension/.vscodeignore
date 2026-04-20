@@ -1,0 +1,6 @@
+src/**
+webview/src/**
+webview/node_modules/**
+tsconfig.json
+*.map
+.vite/
