@@ -1,0 +1,15 @@
+name: Incident Postmortem
+entry: detect
+nodes:
+  - id: detect
+    next: [triage]
+  - id: triage
+    next: [mitigate]
+  - id: mitigate
+    next: [root-cause]
+  - id: root-cause
+    next: [document]
+  - id: document
+    next: [action-items]
+  - id: action-items
+    next: []
