@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.traces/
+.graphrc
+.process/
+*.tsbuildinfo
+*.vsix
+.vite/
+.test-tmp/
+package-lock.json
+packages/vscode-extension/media/
