@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Process Graph - Interactive Demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #101216; --bg2: #161a1f; --fg: #e2dfd8; --fg2: #f5f3ef;
+    --muted: #7c7872; --accent: #4f9c95; --accent2: #6bbfb7;
+    --node-bg: #1b1f25; --node-border: #282d35; --warn: #cfa028; --danger: #bf4a3a;
+    --green: #3faa8c; --panel-bg: rgba(18,21,26,.92); --glass: rgba(22,26,31,.78);
+    --radius: 12px; --radius-sm: 8px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--fg); font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; height: 100vh; overflow: hidden; }
+  #app { display: flex; flex-direction: column; height: 100vh; }
+
+  header { display: flex; align-items: center; gap: 14px; padding: 10px 22px; border-bottom: 1px solid var(--node-border); flex-shrink: 0; backdrop-filter: blur(12px); background: var(--glass); z-index: 20; }
+  header h1 { font-size: 14px; font-weight: 600; letter-spacing: -.3px; color: var(--fg2); }
+  header .sep { width: 1px; height: 18px; background: var(--node-border); }
+  header .pill { font-size: 11px; font-weight: 500; padding: 4px 12px; border-radius: 20px; border: 1px solid var(--node-border); cursor: pointer; user-select: none; transition: all .2s ease; background: transparent; color: var(--muted); }
+  header .pill:hover { border-color: var(--accent); color: var(--fg); background: rgba(79,156,149,.06); }
+  header .pill.active { background: rgba(79,156,149,.12); border-color: var(--accent); color: var(--accent2); }
+  .template-select { background: var(--bg2); border: 1px solid var(--node-border); color: var(--fg); padding: 5px 10px; border-radius: 8px; font-size: 12px; font-family: inherit; cursor: pointer; transition: border .2s; }
+  .template-select:hover { border-color: var(--accent); }
+  .template-select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px rgba(79,156,149,.15); }
+
+  .tabs { display: flex; border-bottom: 1px solid var(--node-border); flex-shrink: 0; background: var(--bg); }
+  .tab { padding: 9px 22px; font-size: 12px; font-weight: 500; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; transition: all .2s ease; user-select: none; letter-spacing: .2px; }
+  .tab:hover { color: var(--fg); }
+  .tab.active { color: var(--accent2); border-bottom-color: var(--accent); }
+
+  .main { flex: 1; display: flex; overflow: hidden; position: relative; }
+  .canvas-wrap { flex: 1; position: relative; overflow: hidden; background: var(--bg); }
+  .canvas-wrap::before { content: ''; position: absolute; inset: 0; background-image: radial-gradient(circle, rgba(124,120,114,.08) 1px, transparent 1px); background-size: 28px 28px; pointer-events: none; z-index: 0; }
+  canvas { display: block; position: relative; z-index: 1; }
+  .side-panel { width: 380px; border-left: 1px solid var(--node-border); overflow-y: auto; background: var(--panel-bg); backdrop-filter: blur(16px); display: none; z-index: 5; }
+  .side-panel.open { display: block; }
+  .side-panel::-webkit-scrollbar { width: 5px; }
+  .side-panel::-webkit-scrollbar-track { background: transparent; }
+  .side-panel::-webkit-scrollbar-thumb { background: var(--node-border); border-radius: 4px; }
+
+  .controls { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; align-items: center; background: var(--glass); backdrop-filter: blur(16px); border: 1px solid var(--node-border); border-radius: 14px; padding: 10px 20px; box-shadow: 0 8px 32px rgba(0,0,0,.35); z-index: 10; }
+  .controls button { background: var(--accent); color: var(--fg2); border: none; border-radius: 8px; padding: 7px 16px; font-size: 12px; font-weight: 500; font-family: inherit; cursor: pointer; transition: all .2s ease; }
+  .controls button:hover { background: var(--accent2); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(79,156,149,.25); }
+  .controls button:active { transform: translateY(0); }
+  .controls button:disabled { opacity: .35; cursor: default; transform: none; box-shadow: none; }
+  .controls button.secondary { background: var(--node-border); color: var(--muted); }
+  .controls button.secondary:hover { background: #353a44; color: var(--fg); }
+  .controls .speed { font-size: 11px; color: var(--muted); }
+  .controls input[type=range] { width: 80px; accent-color: var(--accent); }
+
+  .np { padding: 24px; }
+  .np h2 { font-size: 15px; font-weight: 600; margin-bottom: 16px; color: var(--fg2); letter-spacing: -.2px; }
+  .np .badge { display: inline-block; background: rgba(79,156,149,.08); border: 1px solid rgba(79,156,149,.2); border-radius: 6px; padding: 3px 10px; font-size: 11px; margin: 3px; color: var(--accent2); font-weight: 500; transition: all .15s; }
+  .np .badge:hover { background: rgba(79,156,149,.14); }
+  .np .kv { width: 100%; font-size: 12px; margin-bottom: 20px; border-collapse: collapse; }
+  .np .kv td { padding: 8px 0; border-bottom: 1px solid rgba(40,45,53,.6); vertical-align: top; line-height: 1.5; }
+  .np .kv td:first-child { color: var(--muted); width: 115px; font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: .4px; }
+  .np .body { font-size: 13px; line-height: 1.7; white-space: pre-wrap; margin-top: 16px; color: var(--fg); }
+  .np .section-title { font-size: 11px; font-weight: 600; color: var(--muted); margin: 16px 0 8px; text-transform: uppercase; letter-spacing: .5px; }
+  .np .ctx-file { font-size: 12px; color: var(--accent2); margin: 4px 0; font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace; }
+  .np .tier { display: inline-block; padding: 3px 10px; border-radius: 6px; font-size: 10px; font-weight: 600; margin-left: 8px; letter-spacing: .3px; text-transform: uppercase; }
+  .np .tier.green { background: rgba(63,170,140,.1); color: var(--green); border: 1px solid rgba(63,170,140,.2); }
+  .np .tier.yellow { background: rgba(207,160,40,.1); color: var(--warn); border: 1px solid rgba(207,160,40,.2); }
+  .np .tier.red { background: rgba(191,74,58,.1); color: var(--danger); border: 1px solid rgba(191,74,58,.2); }
+
+  .tp { padding: 24px; font-size: 12px; }
+  .tp h2 { font-size: 15px; font-weight: 600; margin-bottom: 16px; color: var(--fg2); letter-spacing: -.2px; }
+  .tp .entry { display: flex; gap: 10px; padding: 8px 8px; border-radius: 8px; align-items: flex-start; margin-bottom: 2px; transition: background .15s; }
+  .tp .entry:hover { background: rgba(79,156,149,.04); }
+  .tp .entry .time { color: var(--muted); white-space: nowrap; min-width: 72px; font-variant-numeric: tabular-nums; font-size: 11px; }
+  .tp .entry .kind { padding: 2px 8px; border-radius: 5px; font-size: 10px; font-weight: 600; white-space: nowrap; letter-spacing: .2px; }
+  .tp .entry .msg { flex: 1; line-height: 1.5; }
+  .tp .entry.highlight { background: rgba(79,156,149,.08); }
+  .k-set_active_node { background: rgba(79,156,149,.15); color: var(--accent2); }
+  .k-complete_node { background: rgba(63,170,140,.15); color: var(--green); }
+  .k-request_context { background: rgba(37,99,235,.15); color: #6b9dff; }
+  .k-flag_blocked { background: rgba(191,74,58,.15); color: #e8776a; }
+  .k-log_observation { background: rgba(124,120,114,.12); color: var(--muted); }
+  .k-proxy_decision { background: rgba(207,160,40,.15); color: var(--warn); }
+
+  .validation { position: absolute; top: 12px; left: 12px; right: 392px; background: var(--glass); backdrop-filter: blur(12px); border: 1px solid rgba(207,160,40,.25); border-radius: var(--radius); padding: 10px 14px; font-size: 11px; color: var(--warn); max-height: 80px; overflow-y: auto; z-index: 10; line-height: 1.6; }
+  .validation.hidden { display: none; }
+
+  .enf-off { background: transparent; color: var(--muted); border-color: var(--node-border); }
+  .enf-warn { background: rgba(207,160,40,.08); color: var(--warn); border-color: rgba(207,160,40,.35); }
+  .enf-block { background: rgba(191,74,58,.08); color: var(--danger); border-color: rgba(191,74,58,.35); }
+
+  .legend { position: absolute; top: 12px; right: 392px; background: var(--glass); backdrop-filter: blur(12px); border: 1px solid var(--node-border); border-radius: var(--radius); padding: 10px 14px; font-size: 11px; z-index: 10; display: flex; gap: 14px; }
+  .legend.hidden { display: none; }
+  .legend .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; vertical-align: middle; }
+
+  .sim-progress { position: absolute; bottom: 72px; left: 50%; transform: translateX(-50%); font-size: 11px; color: var(--accent2); background: var(--glass); backdrop-filter: blur(12px); padding: 6px 14px; border-radius: 8px; border: 1px solid var(--node-border); z-index: 10; display: none; }
+  .sim-progress.show { display: block; }
+
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+  .side-panel.open { animation: fadeIn .2s ease; }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>Process Graph</h1>
+    <div class="sep"></div>
+    <select class="template-select" id="templateSelect">
+      <option value="swe-feature">swe-feature</option>
+      <option value="research-experiment">research-experiment</option>
+      <option value="incident-postmortem">incident-postmortem</option>
+    </select>
+    <div class="pill" id="ghostBtn">Ghost Trail</div>
+    <div class="pill" id="enfBtn">Enforcement: warn</div>
+    <div style="flex:1"></div>
+    <span style="font-size:11px;color:var(--muted);font-weight:400">Click nodes &middot; Double-click subgraphs &middot; Drag to pan</span>
+  </header>
+  <div class="tabs">
+    <div class="tab active" data-tab="graph">Graph</div>
+    <div class="tab" data-tab="node">Node</div>
+    <div class="tab" data-tab="trace">Trace</div>
+  </div>
+  <div class="main">
+    <div class="canvas-wrap" id="canvasWrap">
+      <canvas id="graphCanvas"></canvas>
+      <div class="validation hidden" id="validationBanner"></div>
+      <div class="legend hidden" id="legend">
+        <span><span class="dot" style="background:var(--accent)"></span> Active</span>
+        <span><span class="dot" style="background:var(--green)"></span> Completed</span>
+        <span><span class="dot" style="background:var(--danger)"></span> Blocked</span>
+        <span style="border-bottom:2px dashed var(--accent);padding-bottom:1px">Ghost trail</span>
+      </div>
+      <div class="sim-progress" id="simProgress"></div>
+      <div class="controls" id="simControls">
+        <button id="simBtn">Simulate Session</button>
+        <button id="resetBtn" class="secondary" disabled>Reset</button>
+        <span class="speed">Speed</span>
+        <input type="range" id="speedSlider" min="1" max="10" value="5">
+      </div>
+    </div>
+    <div class="side-panel open" id="sidePanel">
+      <div id="nodePanel" class="np" style="display:none"></div>
+      <div id="tracePanel" class="tp" style="display:none"></div>
+      <div id="welcomePanel" class="np">
+        <h2>Welcome</h2>
+        <p style="font-size:13px;line-height:1.7;color:var(--muted)">
+          This is an interactive preview of the Process Graph system.<br><br>
+          <b style="color:var(--fg2)">Quick start</b><br>
+          1. Click any node to inspect it<br>
+          2. Hit <b style="color:var(--accent2)">Simulate Session</b> to watch an agent traverse the graph<br>
+          3. Switch templates from the dropdown<br>
+          4. Toggle <b style="color:var(--accent2)">Ghost Trail</b> for traversal history<br>
+          5. Cycle <b style="color:var(--accent2)">Enforcement</b> modes (off / warn / block)<br><br>
+          <span style="font-size:11px">Double-click "Implement" in swe-feature to drill into its subgraph.</span>
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const TEMPLATES = {
+  "swe-feature": {
+    manifest: { name: "SWE Feature", entry: "understand", nodes: [
+      { id: "understand", next: ["implement"] },
+      { id: "implement", next: ["review"] },
+      { id: "review", next: ["ship", "implement"] },
+      { id: "ship", next: [] },
+    ]},
+    nodes: {
+      understand: { title: "Understand the Problem", tools_required: ["read_file","grep"], context_files: ["src/**/*.ts","docs/**/*.md"], success_criteria: "Clear problem statement documented with identified constraints and edge cases", body: "Read the relevant source code and documentation to understand the current behavior and the desired change. Identify the modules and interfaces that will be affected.\n\n## Common Pitfalls\n\n- Jumping to implementation before understanding existing patterns\n- Missing edge cases in the current error handling\n- Not checking for related tests that exercise the affected code paths\n- Overlooking configuration or environment-specific behavior", tokens: 2400 },
+      implement: { title: "Implement Changes", tools_required: ["read_file","write_file","grep","run_terminal_command"], context_files: ["src/**/*.ts","src/**/*.test.ts"], success_criteria: "All changes implemented with passing tests", body: "This is a subgraph node \u2014 see the child nodes for the detailed implementation workflow. The implementation phase covers writing tests first, implementing the feature, and refactoring as needed.", tokens: 45000, hasSubgraph: true,
+        subgraph: { entry: "write-tests", nodes: [
+          { id: "write-tests", next: ["implement-code"] },
+          { id: "implement-code", next: ["refactor"] },
+          { id: "refactor", next: [] },
+        ]},
+        subNodes: {
+          "write-tests": { title: "Write Tests First", tools_required: ["read_file","write_file","run_terminal_command"], context_files: ["src/**/*.test.ts"], success_criteria: "Test cases covering the new behavior are written and initially failing", body: "Write test cases that describe the expected behavior of the new feature. These tests should fail initially since the feature hasn't been implemented yet.\n\nFocus on:\n- Happy path scenarios\n- Edge cases identified during the understand phase\n- Error handling behavior\n- Integration with existing components", tokens: 8500 },
+          "implement-code": { title: "Write Implementation", tools_required: ["read_file","write_file","grep","run_terminal_command"], context_files: ["src/**/*.ts"], success_criteria: "All new tests pass and no existing tests broken", body: "Implement the feature changes to make the new tests pass. Follow existing code patterns and conventions. Run the full test suite after changes to ensure nothing is broken.", tokens: 32000 },
+          "refactor": { title: "Refactor if Needed", tools_required: ["read_file","write_file","grep"], context_files: ["src/**/*.ts"], success_criteria: "Code is clean, well-structured, and all tests still pass", body: "Review the implementation for clarity and consistency. Extract duplicated logic, improve naming, and ensure the code follows project conventions. Run tests after each change.", tokens: 12000 },
+        }
+      },
+      review: { title: "Review Changes", tools_required: ["read_file","grep"], context_files: ["src/**/*.ts","src/**/*.test.ts"], success_criteria: "All review feedback addressed and tests passing", body: "Review the changes for correctness, style, and completeness. Check that tests cover the important cases, error handling is appropriate, and documentation is updated if needed.\n\nIf issues are found, transition back to the implement node to address them.", tokens: 18000 },
+      ship: { title: "Ship It", tools_required: ["run_terminal_command"], context_files: [], success_criteria: "Changes merged and deployed successfully", body: "Create the pull request, get final approval, and merge. Verify the deployment succeeds and monitor for any issues in production.", tokens: 500 },
+    },
+    warnings: ["node \"ship\" is terminal (no outbound edges)", "subgraph \"implement\": node \"refactor\" is terminal (no outbound edges)"],
+    simSteps: [
+      { action: "activate", node: "understand" }, { action: "context", node: "understand", glob: "src/**/*.ts", files: 12, bytes: 34500 },
+      { action: "observe", text: "Codebase uses TypeScript strict mode, found 3 related modules" },
+      { action: "context", node: "understand", glob: "docs/**/*.md", files: 4, bytes: 8200 },
+      { action: "complete", node: "understand", summary: "Identified all affected modules and edge cases" },
+      { action: "activate", node: "implement" },
+      { action: "activate", node: "implement/write-tests" },
+      { action: "context", node: "implement/write-tests", glob: "src/**/*.test.ts", files: 8, bytes: 22000 },
+      { action: "observe", text: "Found existing test patterns to follow, using Jest + supertest" },
+      { action: "complete", node: "implement/write-tests", summary: "Wrote 12 test cases covering happy path and edge cases" },
+      { action: "activate", node: "implement/implement-code" },
+      { action: "context", node: "implement/implement-code", glob: "src/**/*.ts", files: 15, bytes: 48000 },
+      { action: "blocked", reason: "Need clarification on error response format for the new endpoint" },
+      { action: "observe", text: "Found the answer in the API spec doc, unblocked" },
+      { action: "complete", node: "implement/implement-code", summary: "Feature implemented, all 12 tests passing" },
+      { action: "activate", node: "implement/refactor" },
+      { action: "complete", node: "implement/refactor", summary: "Extracted shared validation logic, improved naming" },
+      { action: "activate", node: "review" },
+      { action: "proxy", tool: "write_file", allowed: false, reason: "Review node only allows read_file and grep" },
+      { action: "observe", text: "All tests pass, code follows existing patterns, no security issues found" },
+      { action: "complete", node: "review", summary: "Review passed, no issues found" },
+      { action: "activate", node: "ship" },
+      { action: "observe", text: "PR created, CI green, merged to main, deployment verified" },
+      { action: "complete", node: "ship", summary: "Feature shipped successfully" },
+    ],
+  },
+  "research-experiment": {
+    manifest: { name: "Research Experiment", entry: "literature", nodes: [
+      { id: "literature", next: ["hypothesis"] }, { id: "hypothesis", next: ["implement"] },
+      { id: "implement", next: ["train"] }, { id: "train", next: ["evaluate"] },
+      { id: "evaluate", next: ["writeup", "hypothesis"] }, { id: "writeup", next: [] },
+    ]},
+    nodes: {
+      literature: { title: "Literature Review", tools_required: ["read_file","grep"], context_files: ["papers/**/*.pdf","notes/**/*.md"], success_criteria: "Key papers identified, gaps documented", body: "Survey existing literature and prior work. Identify the state of the art, known limitations, and opportunities for improvement.", tokens: 3200 },
+      hypothesis: { title: "Formulate Hypothesis", tools_required: ["read_file","write_file"], context_files: ["notes/**/*.md","configs/**/*.yaml"], success_criteria: "Clear, testable hypothesis with defined metrics", body: "Formulate a specific hypothesis. Define the metrics for evaluation and experimental conditions.", tokens: 1800 },
+      implement: { title: "Implement Experiment", tools_required: ["read_file","write_file","run_terminal_command"], context_files: ["src/**/*.py","configs/**/*.yaml"], success_criteria: "Experiment code ready to run", body: "Implement the experimental setup: data loading, model changes, training loop, and evaluation scripts.", tokens: 28000 },
+      train: { title: "Run Training", tools_required: ["run_terminal_command","read_file"], context_files: ["configs/**/*.yaml","logs/**/*.log"], success_criteria: "Training completed, checkpoints saved", body: "Launch the training run. Monitor loss curves and resource utilization. Save checkpoints.", tokens: 5400 },
+      evaluate: { title: "Evaluate Results", tools_required: ["read_file","run_terminal_command"], context_files: ["results/**/*","logs/**/*.log"], success_criteria: "Results analyzed, decision made on next steps", body: "Run evaluation. Compare against baselines. If inconclusive, iterate back to hypothesis.", tokens: 15000 },
+      writeup: { title: "Write Up Results", tools_required: ["read_file","write_file"], context_files: ["results/**/*","notes/**/*.md"], success_criteria: "Complete writeup with methodology and conclusions", body: "Document methodology, results, and conclusions with visualizations and comparison tables.", tokens: 4200 },
+    },
+    warnings: ["node \"writeup\" is terminal (no outbound edges)"],
+    simSteps: [
+      { action: "activate", node: "literature" }, { action: "context", node: "literature", glob: "papers/**/*.pdf", files: 8, bytes: 52000 },
+      { action: "observe", text: "Found 3 key papers, identified gap in multi-scale approaches" },
+      { action: "complete", node: "literature", summary: "Reviewed 8 papers, documented gap in multi-scale attention" },
+      { action: "activate", node: "hypothesis" },
+      { action: "complete", node: "hypothesis", summary: "Multi-scale attention will improve F1 by 3-5%" },
+      { action: "activate", node: "implement" }, { action: "context", node: "implement", glob: "src/**/*.py", files: 12, bytes: 34000 },
+      { action: "complete", node: "implement", summary: "Multi-scale attention module implemented" },
+      { action: "activate", node: "train" }, { action: "observe", text: "Training started, ETA 4 hours" },
+      { action: "complete", node: "train", summary: "Loss converged at epoch 42" },
+      { action: "activate", node: "evaluate" }, { action: "context", node: "evaluate", glob: "results/**/*", files: 6, bytes: 18000 },
+      { action: "complete", node: "evaluate", summary: "F1 improved by 4.2%, confirming hypothesis" },
+      { action: "activate", node: "writeup" },
+      { action: "complete", node: "writeup", summary: "Paper draft complete" },
+    ],
+  },
+  "incident-postmortem": {
+    manifest: { name: "Incident Postmortem", entry: "detect", nodes: [
+      { id: "detect", next: ["triage"] }, { id: "triage", next: ["mitigate"] },
+      { id: "mitigate", next: ["root-cause"] }, { id: "root-cause", next: ["document"] },
+      { id: "document", next: ["action-items"] }, { id: "action-items", next: [] },
+    ]},
+    nodes: {
+      detect: { title: "Detect Incident", tools_required: ["read_file","grep"], context_files: ["logs/**/*","alerts/**/*.yaml"], success_criteria: "Incident confirmed with severity assessment", body: "Identify the incident from alerts or monitoring. Confirm impact scope and severity level.", tokens: 4800 },
+      triage: { title: "Triage and Assess", tools_required: ["read_file","grep","run_terminal_command"], context_files: ["logs/**/*","src/**/*.ts"], success_criteria: "Affected systems identified, blast radius determined", body: "Determine affected systems, user impact, and whether the issue is spreading.", tokens: 12000 },
+      mitigate: { title: "Mitigate Impact", tools_required: ["read_file","write_file","run_terminal_command"], context_files: ["src/**/*.ts","configs/**/*.yaml"], success_criteria: "User-facing impact eliminated or reduced", body: "Apply immediate fixes: rollback, feature flag toggle, or hotfix deployment.", tokens: 22000 },
+      "root-cause": { title: "Root Cause Analysis", tools_required: ["read_file","grep"], context_files: ["logs/**/*","src/**/*.ts"], success_criteria: "Root cause identified with evidence", body: "Investigate the underlying cause using the 5 Whys technique.", tokens: 18000 },
+      document: { title: "Document Findings", tools_required: ["read_file","write_file"], context_files: ["postmortem/**/*.md"], success_criteria: "Complete postmortem document", body: "Write postmortem: timeline, root cause, impact, what went well/poorly.", tokens: 3500 },
+      "action-items": { title: "Define Action Items", tools_required: ["read_file","write_file"], context_files: ["postmortem/**/*.md"], success_criteria: "Prioritized action items with owners", body: "Create action items categorized as: prevent, detect, mitigate.", tokens: 2100 },
+    },
+    warnings: ["node \"action-items\" is terminal (no outbound edges)"],
+    simSteps: [
+      { action: "activate", node: "detect" }, { action: "context", node: "detect", glob: "logs/**/*", files: 20, bytes: 180000 },
+      { action: "observe", text: "SEV-1: ~40% of API requests failing with 503" },
+      { action: "complete", node: "detect", summary: "Confirmed: database connection pool exhausted" },
+      { action: "activate", node: "triage" }, { action: "observe", text: "3 services affected, read replicas OK" },
+      { action: "complete", node: "triage", summary: "~12K users impacted, not spreading" },
+      { action: "activate", node: "mitigate" },
+      { action: "blocked", reason: "Need credentials for the database admin console" },
+      { action: "observe", text: "Got access, increasing pool limit and restarting pods" },
+      { action: "complete", node: "mitigate", summary: "Pool increased, services recovered" },
+      { action: "activate", node: "root-cause" }, { action: "context", node: "root-cause", glob: "src/**/*.ts", files: 8, bytes: 24000 },
+      { action: "observe", text: "Connection leak in batch processor deployed yesterday" },
+      { action: "complete", node: "root-cause", summary: "Leak depleted pool over 6 hours" },
+      { action: "activate", node: "document" },
+      { action: "complete", node: "document", summary: "Postmortem complete with timeline" },
+      { action: "activate", node: "action-items" },
+      { action: "complete", node: "action-items", summary: "5 action items: fix leak, add monitoring, add test, update runbook, review pools" },
+    ],
+  },
+};
+
+let currentTemplate = "swe-feature", activeNode = null, completedNodes = new Set(), blockedNode = null;
+let trail = [], traceEntries = [], selectedNode = null, activeTab = "graph";
+let ghostTrail = false, enforcement = "warn", simRunning = false, simStep = 0;
+let zoomedSubgraph = null, panX = 0, panY = 0, zoom = 1, dragStart = null;
+
+function layoutNodes(manifest) {
+  const nodeMap = new Map(manifest.nodes.map(n => [n.id, n]));
+  const layers = new Map(), queue = [manifest.entry], visited = new Set();
+  while (queue.length) {
+    const id = queue.shift();
+    if (visited.has(id)) continue; visited.add(id);
+    const mn = nodeMap.get(id); if (!mn) continue;
+    let maxPred = -1;
+    for (const [nid, n] of nodeMap) { if (n.next.includes(id) && layers.has(nid)) maxPred = Math.max(maxPred, layers.get(nid)); }
+    layers.set(id, maxPred + 1);
+    for (const next of mn.next) queue.push(next);
+  }
+  for (const n of manifest.nodes) { if (!layers.has(n.id)) layers.set(n.id, 0); }
+  const byLayer = new Map();
+  for (const [id, layer] of layers) { if (!byLayer.has(layer)) byLayer.set(layer, []); byLayer.get(layer).push(id); }
+  const W = 210, H = 68, gapX = 150, gapY = 72, positions = new Map();
+  for (const [layer, ids] of byLayer) {
+    const totalH = ids.length * H + (ids.length - 1) * gapY, startY = -totalH / 2;
+    ids.forEach((id, i) => { positions.set(id, { x: layer * (W + gapX), y: startY + i * (H + gapY), w: W, h: H }); });
+  }
+  return positions;
+}
+
+const canvas = document.getElementById("graphCanvas"), ctx = canvas.getContext("2d");
+
+function getDisplayData() {
+  const tmpl = TEMPLATES[currentTemplate];
+  if (zoomedSubgraph && tmpl.nodes[zoomedSubgraph]?.hasSubgraph) {
+    const sub = tmpl.nodes[zoomedSubgraph];
+    return { manifest: sub.subgraph, nodeData: sub.subNodes, prefix: zoomedSubgraph + "/" };
+  }
+  return { manifest: tmpl.manifest, nodeData: tmpl.nodes, prefix: "" };
+}
+
+let nodePositions = new Map();
+
+function render() {
+  const dpr = window.devicePixelRatio || 1, rect = canvas.parentElement.getBoundingClientRect();
+  canvas.width = rect.width * dpr; canvas.height = rect.height * dpr;
+  canvas.style.width = rect.width + "px"; canvas.style.height = rect.height + "px";
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, rect.width, rect.height);
+
+  const { manifest, nodeData, prefix } = getDisplayData();
+  nodePositions = layoutNodes(manifest);
+
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (const p of nodePositions.values()) { minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x + p.w); minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y + p.h); }
+  const offsetX = (rect.width - (maxX - minX) * zoom) / 2 - minX * zoom + panX;
+  const offsetY = (rect.height - (maxY - minY) * zoom) / 2 - minY * zoom + panY;
+  ctx.save(); ctx.translate(offsetX, offsetY); ctx.scale(zoom, zoom);
+
+  // Edges
+  for (const mn of manifest.nodes) {
+    const from = nodePositions.get(mn.id); if (!from) continue;
+    for (const nextId of mn.next) {
+      const to = nodePositions.get(nextId); if (!to) continue;
+      const fx = from.x + from.w, fy = from.y + from.h / 2, tx = to.x, ty = to.y + to.h / 2;
+      const cp = (tx - fx) * 0.45;
+      ctx.beginPath(); ctx.strokeStyle = "rgba(124,120,114,.25)"; ctx.lineWidth = 1.5;
+      ctx.moveTo(fx, fy); ctx.bezierCurveTo(fx + cp, fy, tx - cp, ty, tx, ty); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(tx - 7, ty - 3.5); ctx.lineTo(tx - 7, ty + 3.5);
+      ctx.closePath(); ctx.fillStyle = "rgba(124,120,114,.3)"; ctx.fill();
+    }
+  }
+
+  // Ghost trail
+  if (ghostTrail && trail.length > 1) {
+    const opac = [.9, .6, .35, .18, .08], recent = trail.slice(-6);
+    for (let i = recent.length - 1; i > 0; i--) {
+      const fId = recent[i - 1].replace(prefix, ""), tId = recent[i].replace(prefix, "");
+      const f = nodePositions.get(fId), t = nodePositions.get(tId); if (!f || !t) continue;
+      const a = recent.length - 1 - i;
+      ctx.beginPath(); ctx.strokeStyle = `rgba(79,156,149,${opac[Math.min(a, 4)]})`; ctx.lineWidth = 2.5;
+      ctx.setLineDash([7, 5]); ctx.moveTo(f.x + f.w, f.y + f.h / 2); ctx.lineTo(t.x, t.y + t.h / 2);
+      ctx.stroke(); ctx.setLineDash([]);
+    }
+  }
+
+  // Nodes
+  for (const mn of manifest.nodes) {
+    const pos = nodePositions.get(mn.id); if (!pos) continue;
+    const fullId = prefix + mn.id, nd = nodeData[mn.id];
+    const isActive = activeNode === fullId, isCompleted = completedNodes.has(fullId);
+    const isBlocked = blockedNode === fullId, isSelected = selectedNode === fullId, hasSub = nd?.hasSubgraph;
+
+    // Shadow
+    ctx.shadowColor = isActive ? "rgba(79,156,149,.2)" : "rgba(0,0,0,.25)";
+    ctx.shadowBlur = isActive ? 20 : 10; ctx.shadowOffsetY = isActive ? 0 : 4;
+
+    // Background gradient
+    const grad = ctx.createLinearGradient(pos.x, pos.y, pos.x, pos.y + pos.h);
+    grad.addColorStop(0, isSelected ? "#252a33" : "#1e232a"); grad.addColorStop(1, isSelected ? "#1e232a" : "#191e24");
+    ctx.fillStyle = grad;
+    roundRect(ctx, pos.x, pos.y, pos.w, pos.h, 12); ctx.fill();
+
+    ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+
+    // Border
+    ctx.strokeStyle = isActive ? "var(--accent)" : isBlocked ? "var(--danger)" : isCompleted ? "var(--green)" : "rgba(40,45,53,.8)";
+    ctx.lineWidth = isActive ? 2 : isSelected ? 1.5 : 1;
+    roundRect(ctx, pos.x, pos.y, pos.w, pos.h, 12); ctx.stroke();
+
+    // Active glow ring
+    if (isActive) {
+      ctx.strokeStyle = "rgba(79,156,149,.15)"; ctx.lineWidth = 6;
+      roundRect(ctx, pos.x - 2, pos.y - 2, pos.w + 4, pos.h + 4, 14); ctx.stroke();
+    }
+
+    // Status dot
+    const dotX = pos.x + 16, dotY = pos.y + pos.h / 2, dotR = 4;
+    ctx.beginPath(); ctx.arc(dotX, dotY, dotR, 0, Math.PI * 2);
+    ctx.fillStyle = isActive ? "#4f9c95" : isCompleted ? "#3faa8c" : isBlocked ? "#bf4a3a" : "#3a3f48";
+    ctx.fill();
+    if (isCompleted) { ctx.font = "bold 8px Inter, sans-serif"; ctx.fillStyle = "#fff"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("\u2713", dotX, dotY + .5); ctx.textAlign = "left"; }
+
+    // Title
+    ctx.font = "500 12.5px Inter, -apple-system, sans-serif"; ctx.fillStyle = isActive ? "#e2dfd8" : "#c5c0b8";
+    ctx.textBaseline = "middle";
+    const title = nd?.title ?? mn.id, maxW = pos.w - 52;
+    let dt = title; while (ctx.measureText(dt).width > maxW && dt.length > 3) dt = dt.slice(0, -4) + "\u2026";
+    ctx.fillText(dt, pos.x + 30, pos.y + pos.h / 2);
+
+    // Subgraph chevron
+    if (hasSub && !zoomedSubgraph) {
+      ctx.fillStyle = "rgba(124,120,114,.4)"; ctx.font = "10px sans-serif";
+      ctx.fillText("\u203A", pos.x + pos.w - 16, pos.y + pos.h / 2);
+    }
+  }
+  ctx.restore();
+
+  // Breadcrumb
+  if (zoomedSubgraph) {
+    ctx.font = "500 12px Inter, sans-serif"; ctx.fillStyle = "#4f9c95";
+    ctx.fillText("\u2190 root / " + zoomedSubgraph, 18, rect.height - 58);
+  }
+}
+
+function roundRect(c, x, y, w, h, r) {
+  c.beginPath(); c.moveTo(x+r,y); c.lineTo(x+w-r,y); c.quadraticCurveTo(x+w,y,x+w,y+r);
+  c.lineTo(x+w,y+h-r); c.quadraticCurveTo(x+w,y+h,x+w-r,y+h); c.lineTo(x+r,y+h);
+  c.quadraticCurveTo(x,y+h,x,y+h-r); c.lineTo(x,y+r); c.quadraticCurveTo(x,y,x+r,y); c.closePath();
+}
+
+function screenToGraph(sx, sy) {
+  const rect = canvas.getBoundingClientRect();
+  let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;
+  for (const p of nodePositions.values()){minX=Math.min(minX,p.x);maxX=Math.max(maxX,p.x+p.w);minY=Math.min(minY,p.y);maxY=Math.max(maxY,p.y+p.h);}
+  const oX=(rect.width-(maxX-minX)*zoom)/2-minX*zoom+panX, oY=(rect.height-(maxY-minY)*zoom)/2-minY*zoom+panY;
+  return{x:(sx-oX)/zoom,y:(sy-oY)/zoom};
+}
+
+function hitTest(sx,sy){const{x,y}=screenToGraph(sx,sy);const{prefix}=getDisplayData();for(const[id,pos]of nodePositions){if(x>=pos.x&&x<=pos.x+pos.w&&y>=pos.y&&y<=pos.y+pos.h)return prefix+id;}return null;}
+
+function showNodePanel(nodeId) {
+  const tmpl = TEMPLATES[currentTemplate]; let nd = null;
+  const parts = nodeId.split("/");
+  if (parts.length === 2) { const p = tmpl.nodes[parts[0]]; if (p?.subNodes) nd = p.subNodes[parts[1]]; }
+  else nd = tmpl.nodes[nodeId];
+  if (!nd) return;
+  const panel = document.getElementById("nodePanel"), tokens = nd.tokens||0;
+  const tier = tokens > 50000 ? "red" : tokens > 10000 ? "yellow" : "green";
+  const tierLabel = tokens > 50000 ? "High context" : tokens > 10000 ? "Medium" : "Low";
+  panel.innerHTML = `<h2>${nd.title}</h2>
+    <table class="kv"><tr><td>ID</td><td>${nodeId}</td></tr>
+    ${nd.success_criteria?`<tr><td>Criteria</td><td>${nd.success_criteria}</td></tr>`:""}
+    <tr><td>Status</td><td>${completedNodes.has(nodeId)?"\u2713 Completed":activeNode===nodeId?"\u25CF Active":blockedNode===nodeId?"\u2717 Blocked":"\u25CB Idle"}</td></tr></table>
+    ${nd.context_files?.length?`<div class="section-title">Context Files <span class="tier ${tier}">${tierLabel} (~${(tokens/1000).toFixed(0)}K tokens)</span></div>${nd.context_files.map(f=>`<div class="ctx-file">${f}</div>`).join("")}`:""}
+    ${nd.tools_required?.length?`<div class="section-title">Tools Required ${enforcement!=="off"?`<span style="font-size:10px;color:var(--muted)">(${enforcement})</span>`:""}</div><div>${nd.tools_required.map(t=>`<span class="badge">${t}</span>`).join("")}</div>`:""}
+    <div class="body">${nd.body}</div>`;
+  panel.style.display="block"; document.getElementById("tracePanel").style.display="none"; document.getElementById("welcomePanel").style.display="none";
+}
+
+function showTracePanel() {
+  const panel = document.getElementById("tracePanel"), rev = [...traceEntries].reverse();
+  panel.innerHTML = `<h2>Trace (${traceEntries.length} entries)</h2>` + rev.map(e => {
+    const time = new Date(e.ts).toLocaleTimeString(), hl = e.kind==="set_active_node" && e.node===activeNode;
+    return `<div class="entry${hl?" highlight":""}"><span class="time">${time}</span><span class="kind k-${e.kind}">${e.kind.replace(/_/g," ")}</span><span class="msg">${fmtTrace(e)}</span></div>`;
+  }).join("");
+  panel.style.display="block"; document.getElementById("nodePanel").style.display="none"; document.getElementById("welcomePanel").style.display="none";
+}
+
+function fmtTrace(e) {
+  switch(e.kind){case"set_active_node":return`\u2192 ${e.node}${e.previous?` (from ${e.previous})`:""}`;case"complete_node":return`\u2713 ${e.node}: ${e.summary}`;case"request_context":return`${e.glob} \u2192 ${e.files} files (${(e.bytes/1024).toFixed(1)}KB)`;case"flag_blocked":return e.reason;case"log_observation":return e.text;case"proxy_decision":return`${e.tool} ${e.allowed?"ALLOWED":"DENIED"}: ${e.reason}`;default:return JSON.stringify(e);}
+}
+
+function updateValidation() {
+  const tmpl=TEMPLATES[currentTemplate],b=document.getElementById("validationBanner");
+  if(tmpl.warnings?.length){b.innerHTML=tmpl.warnings.map(w=>w).join("<br>");b.classList.remove("hidden");}else b.classList.add("hidden");
+}
+
+async function runSimulation() {
+  const tmpl=TEMPLATES[currentTemplate],steps=tmpl.simSteps; simRunning=true; simStep=0;
+  document.getElementById("simBtn").disabled=true; document.getElementById("resetBtn").disabled=true;
+  const prog = document.getElementById("simProgress"); prog.classList.add("show");
+  setTab("graph");
+  for (let i=0;i<steps.length&&simRunning;i++){
+    simStep=i; const s=steps[i], speed=11-parseInt(document.getElementById("speedSlider").value), delay=speed*120;
+    const ts=new Date().toISOString();
+    prog.textContent = `Step ${i+1} of ${steps.length}`;
+    switch(s.action){
+      case"activate":{const prev=activeNode;activeNode=s.node;blockedNode=null;trail.push(s.node);traceEntries.push({ts,kind:"set_active_node",node:s.node,previous:prev});break;}
+      case"complete":{completedNodes.add(s.node);if(activeNode===s.node)activeNode=null;traceEntries.push({ts,kind:"complete_node",node:s.node,summary:s.summary});break;}
+      case"context":{traceEntries.push({ts,kind:"request_context",glob:s.glob,files:s.files,bytes:s.bytes});break;}
+      case"blocked":{blockedNode=activeNode;traceEntries.push({ts,kind:"flag_blocked",reason:s.reason});break;}
+      case"observe":{traceEntries.push({ts,kind:"log_observation",text:s.text});break;}
+      case"proxy":{traceEntries.push({ts,kind:"proxy_decision",tool:s.tool,allowed:s.allowed,reason:s.reason});break;}
+    }
+    if(s.action==="activate"&&s.node.includes("/")&&!zoomedSubgraph)zoomedSubgraph=s.node.split("/")[0];
+    if(s.action==="activate"&&!s.node.includes("/")&&zoomedSubgraph)zoomedSubgraph=null;
+    if(activeNode){selectedNode=activeNode;showNodePanel(activeNode);}
+    render(); if(activeTab==="trace")showTracePanel();
+    await new Promise(r=>setTimeout(r,delay));
+  }
+  simRunning=false; prog.classList.remove("show");
+  document.getElementById("simBtn").disabled=true; document.getElementById("resetBtn").disabled=false;
+  if(activeTab==="graph")setTab("trace"); showTracePanel();
+}
+
+function resetSim(){activeNode=null;completedNodes.clear();blockedNode=null;trail=[];traceEntries=[];selectedNode=null;simRunning=false;simStep=0;zoomedSubgraph=null;document.getElementById("simBtn").disabled=false;document.getElementById("resetBtn").disabled=true;document.getElementById("nodePanel").style.display="none";document.getElementById("tracePanel").style.display="none";document.getElementById("welcomePanel").style.display="block";document.getElementById("simProgress").classList.remove("show");render();}
+
+function setTab(tab){activeTab=tab;document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("active",t.dataset.tab===tab));const sp=document.getElementById("sidePanel");sp.classList.add("open");if(tab==="graph"){if(!selectedNode){document.getElementById("welcomePanel").style.display="block";document.getElementById("nodePanel").style.display="none";document.getElementById("tracePanel").style.display="none";}}else if(tab==="node"){if(selectedNode)showNodePanel(selectedNode);else{document.getElementById("welcomePanel").style.display="block";document.getElementById("nodePanel").style.display="none";document.getElementById("tracePanel").style.display="none";}}else if(tab==="trace")showTracePanel();}
+
+document.querySelectorAll(".tab").forEach(t=>{t.addEventListener("click",()=>setTab(t.dataset.tab));});
+document.getElementById("templateSelect").addEventListener("change",e=>{currentTemplate=e.target.value;resetSim();updateValidation();render();});
+document.getElementById("ghostBtn").addEventListener("click",()=>{ghostTrail=!ghostTrail;document.getElementById("ghostBtn").classList.toggle("active",ghostTrail);document.getElementById("legend").classList.toggle("hidden",!ghostTrail);render();});
+document.getElementById("enfBtn").addEventListener("click",()=>{const m=["off","warn","block"];enforcement=m[(m.indexOf(enforcement)+1)%m.length];const b=document.getElementById("enfBtn");b.textContent=`Enforcement: ${enforcement}`;b.className=`pill enf-${enforcement}`;});
+document.getElementById("simBtn").addEventListener("click",()=>{if(!simRunning){resetSim();runSimulation();}});
+document.getElementById("resetBtn").addEventListener("click",resetSim);
+canvas.addEventListener("click",e=>{const r=canvas.getBoundingClientRect(),h=hitTest(e.clientX-r.left,e.clientY-r.top);if(h){selectedNode=h;showNodePanel(h);setTab("node");render();}});
+canvas.addEventListener("dblclick",e=>{const r=canvas.getBoundingClientRect(),h=hitTest(e.clientX-r.left,e.clientY-r.top);if(h&&!h.includes("/")){const t=TEMPLATES[currentTemplate];if(t.nodes[h]?.hasSubgraph){zoomedSubgraph=h;panX=0;panY=0;render();return;}}if(zoomedSubgraph){zoomedSubgraph=null;panX=0;panY=0;render();}});
+canvas.addEventListener("mousedown",e=>{dragStart={x:e.clientX-panX,y:e.clientY-panY};});
+canvas.addEventListener("mousemove",e=>{if(dragStart){panX=e.clientX-dragStart.x;panY=e.clientY-dragStart.y;render();}const r=canvas.getBoundingClientRect();canvas.style.cursor=hitTest(e.clientX-r.left,e.clientY-r.top)?"pointer":(dragStart?"grabbing":"grab");});
+canvas.addEventListener("mouseup",()=>{dragStart=null;});
+canvas.addEventListener("mouseleave",()=>{dragStart=null;});
+canvas.addEventListener("wheel",e=>{e.preventDefault();zoom=Math.max(.3,Math.min(3,zoom*(e.deltaY>0?.92:1.08)));render();},{passive:false});
+window.addEventListener("resize",render);
+updateValidation(); render();
+</script>
+</body>
+</html>
